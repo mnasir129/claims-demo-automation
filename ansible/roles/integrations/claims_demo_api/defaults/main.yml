@@ -1,0 +1,5 @@
+---
+claims_demo_api_application_name: "ClaimsDemoAPI"
+
+claims_demo_api_application_settings_file: >-
+  {{ inventory_dir }}/files/integrations/claims_demo_api/appsettings.json

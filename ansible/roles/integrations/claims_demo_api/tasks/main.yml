@@ -1,0 +1,13 @@
+---
+- name: Show Claims Demo API variables
+  ansible.builtin.debug:
+    msg: "{{ item }}: {{ lookup('ansible.builtin.vars', item) }}"
+  loop: "{{ query('ansible.builtin.varnames', '^claims_demo_api_.+') }}"
+
+- name: Run Claims Demo API full deployment
+  ansible.builtin.import_tasks: full-deploy.yml
+  when: claims_demo_api_code_tarball is defined
+
+- name: Redeploy Claims Demo API appsettings
+  ansible.builtin.import_tasks: redeploy_appsettings.yaml
+  when: redeploy_appsettings_claims_demo_api is defined

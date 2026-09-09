@@ -1,0 +1,10 @@
+---
+- name: Redeploy Claims Demo API appsettings
+  ansible.builtin.include_role:
+    name: common/redeploy_appsettings_iis
+  vars:
+    iis_application_directory: "{{ claims_demo_api_deployment_path }}"
+    iis_application_name: "{{ claims_demo_api_application_name }}"
+    iis_application_pool_name: "{{ claims_demo_api_application_pool_name }}"
+    iis_application_settings_file: "{{ claims_demo_api_application_settings_file }}"
+    iis_application_healthcheck_url: "{{ claims_demo_api_application_healthcheck_url }}"

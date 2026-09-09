@@ -1,0 +1,15 @@
+---
+- name: Deploy Claims Demo API
+  ansible.builtin.include_role:
+    name: common/deploy_app_iis
+  vars:
+    iis_source_code_tarball: "{{ claims_demo_api_code_tarball }}"
+
+    iis_backup_directory: >-
+      {{ edex_backup_base_location }}\{{ claims_demo_api_application_name }}\{{ '%H%M%S' | ansible.builtin.strftime }}\
+
+    iis_application_directory: "{{ claims_demo_api_deployment_path }}"
+    iis_application_name: "{{ claims_demo_api_application_name }}"
+    iis_application_pool_name: "{{ claims_demo_api_application_pool_name }}"
+    iis_application_settings_file: "{{ claims_demo_api_application_settings_file }}"
+    iis_application_healthcheck_url: "{{ claims_demo_api_application_healthcheck_url }}"
