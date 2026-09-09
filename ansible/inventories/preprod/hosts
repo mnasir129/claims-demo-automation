@@ -1,0 +1,8 @@
+[windows]
+claims_demo_iis ansible_host=172.28.51.217
+
+[claims_demo_api]
+claims_demo_iis
+
+[preprod:children]
+windows
