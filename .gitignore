@@ -1,0 +1,10 @@
+# Ansible sensitive/local files
+ansible/vault_password
+ansible/windows_password
+*.retry
+
+# Editor/OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
