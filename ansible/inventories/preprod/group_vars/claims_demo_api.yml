@@ -1,0 +1,12 @@
+---
+claims_demo_api_folder_name: "ClaimsDemoAPI"
+
+claims_demo_api_deployment_path: >-
+  C:\Apps\{{ claims_demo_api_folder_name }}
+
+claims_demo_api_application_pool_name: "ClaimsDemoAPI"
+
+claims_demo_api_application_pool_port: 8090
+
+claims_demo_api_application_healthcheck_url: >-
+  http://{{ ansible_facts['fqdn'] }}:{{ claims_demo_api_application_pool_port }}/health
