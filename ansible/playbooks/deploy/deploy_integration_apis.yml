@@ -1,0 +1,12 @@
+---
+- name: Deploy Claims Demo integration APIs
+  hosts: claims_demo_api:&windows
+  gather_facts: true
+  serial: "{{ deploy_parallelism | default('25%') }}"
+  any_errors_fatal: true
+
+  roles:
+    - role: integrations/claims_demo_api
+      source_code_path: "{{ claims_demo_api_code_tarball | mandatory }}"
+      when:
+        - claims_demo_api_code_tarball is defined
