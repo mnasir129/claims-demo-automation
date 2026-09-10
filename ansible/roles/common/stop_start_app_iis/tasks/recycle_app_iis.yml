@@ -1,14 +1,6 @@
 ---
-- name: "Recycle apppool for {{ iis_application_name | mandatory }}"
-  ansible.windows.win_shell: >
-    C:\Windows\System32\inetsrv\appcmd
-    recycle apppool
-    /apppool.name:{{ iis_application_pool_name | mandatory }}
-  become: true
-  become_method: runas
-  become_user: "{{ ansible_facts['user_id'] }}"
-  register: recycle_apppool_result
+- name: Stop apppool before recycle
+  ansible.builtin.import_tasks: stop_app_iis.yml
 
-- name: Run readiness probe after apppool recycle
-  ansible.builtin.include_role:
-    name: common/healthcheck_app_iis
+- name: Start apppool after recycle
+  ansible.builtin.import_tasks: start_app_iis.yml
