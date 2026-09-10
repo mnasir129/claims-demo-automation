@@ -1,0 +1,166 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    parameters {
+        booleanParam(
+            name: 'CLAIMS_DEMO_API',
+            defaultValue: true,
+            description: 'Run selected operation for Claims Demo API'
+        )
+
+        choice(
+            name: 'ACTION',
+            choices: ['RECYCLE', 'START', 'STOP'],
+            description: 'Select IIS app pool operation'
+        )
+    }
+
+    environment {
+        AUTOMATION_REPO_URL = 'https://github.com/mnasir129/claims-demo-automation.git'
+        AUTOMATION_BRANCH = 'develop'
+
+        GIT_CREDENTIALS_ID = 'github-token'
+        WINDOWS_CREDENTIALS_ID = 'windows-creds'
+        ANSIBLE_VAULT_CREDENTIAL_ID = 'claims-demo-ansible-vault-password'
+
+        ANSIBLE_IMAGE = '172.28.52.31:8081/docker-hosted/local-ansible-winrm:latest'
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Automation') {
+            steps {
+                dir('automation') {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${AUTOMATION_BRANCH}"]],
+                        userRemoteConfigs: [[
+                            url: "${AUTOMATION_REPO_URL}",
+                            credentialsId: "${GIT_CREDENTIALS_ID}"
+                        ]]
+                    ])
+                }
+            }
+        }
+
+        stage('Run IIS Operation') {
+            when {
+                expression { return params.CLAIMS_DEMO_API }
+            }
+            steps {
+                script {
+                    def uid = sh(returnStdout: true, script: 'id -u').trim()
+                    def gid = sh(returnStdout: true, script: 'id -g').trim()
+
+                    def operationExtraVar = ''
+
+                    if (params.ACTION == 'STOP') {
+                        operationExtraVar = 'stop_claims_demo_api=true'
+                    } else if (params.ACTION == 'START') {
+                        operationExtraVar = 'start_claims_demo_api=true'
+                    } else if (params.ACTION == 'RECYCLE') {
+                        operationExtraVar = 'recycle_claims_demo_api=true'
+                    } else {
+                        error("Unsupported ACTION: ${params.ACTION}")
+                    }
+
+                    echo "Selected action: ${params.ACTION}"
+                    echo "Ansible operation variable: ${operationExtraVar}"
+
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: "${WINDOWS_CREDENTIALS_ID}",
+                            usernameVariable: 'ANSIBLE_REMOTE_USER',
+                            passwordVariable: 'ANSIBLE_REMOTE_PASSWORD'
+                        ),
+                        string(
+                            credentialsId: "${ANSIBLE_VAULT_CREDENTIAL_ID}",
+                            variable: 'VAULT_PASSWORD'
+                        )
+                    ]) {
+                        dir('automation/ansible') {
+                            sh '''
+                                set +x
+
+                                printf '%s\\n' "$ANSIBLE_REMOTE_PASSWORD" > windows_password
+                                printf '%s\\n' "$VAULT_PASSWORD" > vault_password
+
+                                chmod 600 windows_password vault_password
+                            '''
+
+                            def ansibleDir = pwd()
+
+                            docker.image(ANSIBLE_IMAGE).inside("--network host --user ${uid}:${gid} -e HOME=/tmp -e ANSIBLE_REMOTE_USER -e ANSIBLE_CONNECTION_PASSWORD_FILE=${ansibleDir}/windows_password -e ANSIBLE_VAULT_PASSWORD_FILE=${ansibleDir}/vault_password -e ANSIBLE_CONFIG=${ansibleDir}/ansible.cfg") {
+                                def hipCommonLib = library('hip-common-lib@main')
+
+                                hipCommonLib.ae.damanhealth.DockerAnsible.installWinRMDependencies(this)
+
+                                sh """
+                                    set -e
+
+                                    ansible-playbook -v \
+                                        -i inventories/preprod/hosts \
+                                        playbooks/stop_start/stop_start_integration_apis.yml \
+                                        --extra-vars "deploy_parallelism=100%" \
+                                        --extra-vars "${operationExtraVar}"
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Verify Running Endpoint') {
+            when {
+                expression {
+                    return params.CLAIMS_DEMO_API && params.ACTION != 'STOP'
+                }
+            }
+            steps {
+                sh '''
+                    set -e
+
+                    echo "Checking Claims Demo API health endpoint"
+                    curl -i http://172.28.51.217:8090/health
+
+                    echo "Checking Claims Demo API root endpoint"
+                    curl -s http://172.28.51.217:8090/ | python3 -m json.tool
+                '''
+            }
+        }
+
+        stage('Stop Confirmation') {
+            when {
+                expression {
+                    return params.CLAIMS_DEMO_API && params.ACTION == 'STOP'
+                }
+            }
+            steps {
+                sh '''
+                    echo "STOP action completed. Endpoint verification is skipped because the app pool is intentionally stopped."
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                rm -f automation/ansible/windows_password || true
+                rm -f automation/ansible/vault_password || true
+            '''
+        }
+    }
+}
