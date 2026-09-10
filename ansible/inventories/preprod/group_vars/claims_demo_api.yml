@@ -1,4 +1,6 @@
 ---
+claims_demo_api_application_name: "ClaimsDemoAPI"
+
 claims_demo_api_folder_name: "ClaimsDemoAPI"
 
 claims_demo_api_deployment_path: >-
