@@ -149,6 +149,9 @@ pipeline {
                                 printf '%s\\n' "$VAULT_PASSWORD" > vault_password
 
                                 chmod 600 windows_password vault_password
+
+                                cp ../claimsDemoAPI.tar.gz claimsDemoAPI.tar.gz
+                                ls -lh claimsDemoAPI.tar.gz
                             '''
 
                             def ansibleDir = pwd()
@@ -165,7 +168,7 @@ pipeline {
                                         -i inventories/preprod/hosts \
                                         playbooks/deploy/deploy_integration_apis.yml \
                                         --extra-vars "deploy_parallelism=100%" \
-                                        --extra-vars "claims_demo_api_code_tarball=${WORKSPACE}/automation/claimsDemoAPI.tar.gz"
+                                        --extra-vars "claims_demo_api_code_tarball=$PWD/claimsDemoAPI.tar.gz"
                                 '''
                             }
                         }
@@ -197,6 +200,7 @@ pipeline {
             sh '''
                 rm -f automation/ansible/windows_password || true
                 rm -f automation/ansible/vault_password || true
+                rm -f automation/ansible/claimsDemoAPI.tar.gz || true
             '''
         }
     }
